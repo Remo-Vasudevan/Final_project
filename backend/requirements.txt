@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-multipart
+transformers
+torch
+torchvision
+easyocr
+pytesseract
+pillow
+opencv-python-headless
+numpy
+pandas
+openpyxl
+pydantic
