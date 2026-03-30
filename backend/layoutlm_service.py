@@ -48,12 +48,22 @@ def analyze_document_layout(
     The response is intentionally lightweight and suitable for a mini project.
     """
     if not words or not boxes:
+        note = "LayoutLMv3 skipped because OCR did not produce usable words and boxes."
         return {
             "document_type": _guess_document_type(raw_text),
             "token_count": 0,
             "model_name": MODEL_NAME,
             "embedding_preview": [],
-            "note": "LayoutLMv3 skipped because OCR did not produce usable words and boxes.",
+            "note": note,
+            "layoutlmv3_status": {
+                "enabled": True,
+                "source": "Hugging Face",
+                "mode": "layout-aware document understanding",
+                "model_name": MODEL_NAME,
+                "executed": False,
+                "fallback_used": True,
+                "note": note,
+            },
         }
 
     try:
@@ -75,6 +85,10 @@ def analyze_document_layout(
         embedding_preview = [round(float(value), 4) for value in cls_embedding[:8]]
         token_count = int(encoded["attention_mask"].sum().item())
         document_type = _guess_document_type(raw_text)
+        note = (
+            "Base LayoutLMv3 embeddings are available. "
+            "Invoice field extraction still relies on OCR + rules until a fine-tuned key-value model is added."
+        )
 
         logger.info("LayoutLMv3 processed %s tokens", token_count)
         return {
@@ -82,21 +96,36 @@ def analyze_document_layout(
             "token_count": token_count,
             "model_name": MODEL_NAME,
             "embedding_preview": embedding_preview,
-            "note": (
-                "Base LayoutLMv3 embeddings are available. "
-                "Invoice field extraction still relies on OCR + rules until a fine-tuned key-value model is added."
-            ),
+            "note": note,
+            "layoutlmv3_status": {
+                "enabled": True,
+                "source": "Hugging Face",
+                "mode": "layout-aware document understanding",
+                "model_name": MODEL_NAME,
+                "executed": True,
+                "fallback_used": False,
+                "note": note,
+            },
         }
     except Exception as exc:
         logger.warning("LayoutLMv3 analysis skipped: %s", exc)
+        note = (
+            "LayoutLMv3 could not be loaded or executed in this environment, "
+            "so the API continued with OCR + rule-based extraction only."
+        )
         return {
             "document_type": _guess_document_type(raw_text),
             "token_count": len(words),
             "model_name": MODEL_NAME,
             "embedding_preview": [],
-            "note": (
-                "LayoutLMv3 could not be loaded or executed in this environment, "
-                "so the API continued with OCR + rule-based extraction only."
-            ),
+            "note": note,
+            "layoutlmv3_status": {
+                "enabled": False,
+                "source": "Hugging Face",
+                "mode": "layout-aware document understanding",
+                "model_name": MODEL_NAME,
+                "executed": False,
+                "fallback_used": True,
+                "note": note,
+            },
         }
-

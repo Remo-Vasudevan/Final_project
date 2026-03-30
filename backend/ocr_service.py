@@ -3,6 +3,7 @@ from typing import Any
 
 import easyocr
 import numpy as np
+import pytesseract
 
 from config import OCR_LANGUAGES
 from utils import normalize_box, polygon_to_box, preprocess_image_for_ocr
@@ -74,14 +75,16 @@ def _extract_with_tesseract(image_array: np.ndarray, width: int, height: int) ->
             }
         )
 
+    raw_text = "\n".join(lines)
     return {
+        "full_text": raw_text,
         "words": words,
         "boxes": boxes,
         "bounding_boxes": bounding_boxes,
         "normalized_boxes": boxes,
         "entries": entries,
         "confidences": confidences,
-        "raw_text": "\n".join(lines),
+        "raw_text": raw_text,
     }
 
 
@@ -126,14 +129,16 @@ def extract_ocr_data(image_path: str) -> dict[str, Any]:
                 }
             )
 
+        raw_text = "\n".join(lines)
         payload = {
+            "full_text": raw_text,
             "words": words,
             "boxes": boxes,
             "bounding_boxes": bounding_boxes,
             "normalized_boxes": boxes,
             "entries": entries,
             "confidences": confidences,
-            "raw_text": "\n".join(lines),
+            "raw_text": raw_text,
         }
     except Exception as exc:
         logger.warning("EasyOCR failed, attempting pytesseract fallback: %s", exc)
@@ -145,9 +150,3 @@ def extract_ocr_data(image_path: str) -> dict[str, Any]:
         "image_size": {"width": width, "height": height},
         "image": processed_image,
     }
-
-
-
-
-
-

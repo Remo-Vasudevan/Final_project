@@ -153,6 +153,7 @@ def build_extraction_result(image_path, original_filename: str) -> dict[str, Any
     if not raw_text.strip():
         raise ValueError("OCR did not detect any readable text in the uploaded document.")
 
+    # LayoutLMv3 is additive here: the existing OCR + rules path remains the fallback.
     layoutlm_result = analyze_document_layout(
         image=ocr_result["image"],
         words=ocr_result["words"],
@@ -173,11 +174,12 @@ def build_extraction_result(image_path, original_filename: str) -> dict[str, Any
         "raw_text": raw_text,
         "image_size": ocr_result["image_size"],
         "ocr_layout_data": {
-            "full_text": raw_text,
+            "full_text": ocr_result["full_text"],
             "words": ocr_result["words"],
             "bounding_boxes": ocr_result["bounding_boxes"],
             "normalized_boxes": ocr_result["normalized_boxes"],
         },
+        "layoutlmv3_status": layoutlm_result["layoutlmv3_status"],
         "confidence_note": confidence_note,
         "layoutlm_summary": {
             "model_name": layoutlm_result["model_name"],

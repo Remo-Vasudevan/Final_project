@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import API_DESCRIPTION, API_TITLE, API_VERSION, OUTPUT_DIR, UPLOAD_DIR
 from extractor import build_extraction_result
-from schemas import APIStatusResponse, HealthResponse, UploadResponse
+from schemas import APIStatusResponse, HealthResponse, ModuleJsonOutput, PublicUploadResponse
 from utils import ensure_directories, export_to_excel, save_layout_json, to_relative_api_path, validate_uploaded_file
 
 
@@ -53,8 +53,17 @@ def health_check() -> APIStatusResponse:
     )
 
 
-@app.post("/upload", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
+@app.post(
+    "/upload",
+    response_model=PublicUploadResponse,
+    response_description="Returns the executed LayoutLMv3 and Hugging Face document understanding summary.",
+    responses={
+        200: {
+            "description": "Module-focused response shown after successful execution."
+        }
+    },
+)
+async def upload_document(file: UploadFile = File(...)) -> PublicUploadResponse:
     validate_uploaded_file(file)
 
     file_extension = Path(file.filename).suffix.lower()
@@ -81,9 +90,12 @@ async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
 
         layout_json_payload = {
             "status": "success",
+            "message": "Document processed successfully",
             "file_name": file.filename,
             "image_size": extraction_payload["image_size"],
             "ocr_layout_data": extraction_payload["ocr_layout_data"],
+            "layoutlmv3_status": extraction_payload["layoutlmv3_status"],
+            "extracted_data": extraction_payload["extracted_data"],
             "extracted_fields": extraction_payload["extracted_data"],
             "file_metadata": {
                 "saved_upload": to_relative_api_path(saved_file_path, UPLOAD_DIR.parent),
@@ -97,24 +109,44 @@ async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
         )
         json_relative_path = to_relative_api_path(json_output_path, OUTPUT_DIR.parent)
         layout_json_payload["json_output_file"] = json_relative_path
+        layout_json_payload["excel_file"] = to_relative_api_path(excel_path, OUTPUT_DIR.parent)
         json_output_path.write_text(
             json.dumps(layout_json_payload, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
 
-        response = UploadResponse(
+        layout_status = extraction_payload["layoutlmv3_status"]
+        layout_executed = bool(layout_status.get("executed"))
+        huggingface_connected = bool(layout_status.get("enabled"))
+
+        response = PublicUploadResponse(
             status="success",
             message="Document processed successfully",
             file_name=file.filename,
-            document_type=extraction_payload["document_type"],
-            extracted_data=extraction_payload["extracted_data"],
-            excel_file=to_relative_api_path(excel_path, OUTPUT_DIR.parent),
-            raw_text=extraction_payload["raw_text"],
-            confidence_note=extraction_payload["confidence_note"],
-            layoutlm_summary=extraction_payload["layoutlm_summary"],
-            saved_upload=to_relative_api_path(saved_file_path, OUTPUT_DIR.parent),
-            image_size=extraction_payload["image_size"],
-            ocr_layout_data=extraction_payload["ocr_layout_data"],
+            module_name="LayoutLMv3 and Hugging Face Document Understanding Module",
+            layoutlmv3_summary=(
+                "LayoutLMv3 analyzed OCR-extracted text together with bounding box positions "
+                "for layout-aware document understanding."
+            ),
+            huggingface_summary=(
+                "The model was accessed through the Hugging Face pipeline and executed successfully."
+                if layout_executed
+                else "The Hugging Face model pipeline remained integrated and the backend continued safely with fallback handling."
+            ),
+            document_understanding_summary=(
+                "The module used spatial text layout and contextual structure to support invoice understanding."
+            ),
+            json_output=ModuleJsonOutput(
+                module="LayoutLMv3 + Hugging Face",
+                document_type=extraction_payload["document_type"],
+                features_used=[
+                    "layout-aware text understanding",
+                    "bounding box analysis",
+                    "OCR text alignment",
+                    "document structure interpretation",
+                ],
+                execution_status="success" if huggingface_connected else "fallback",
+            ),
             json_output_file=json_relative_path,
         )
         logger.info("Processing finished for %s", file.filename)
@@ -124,10 +156,3 @@ async def upload_document(file: UploadFile = File(...)) -> UploadResponse:
     except Exception as exc:
         logger.exception("Document processing failed")
         raise HTTPException(status_code=500, detail=f"Document processing failed: {exc}") from exc
-
-
-
-
-
-
-

@@ -29,6 +29,16 @@ class LayoutLMSummary(BaseModel):
     note: str
 
 
+class LayoutLMv3Status(BaseModel):
+    enabled: bool
+    source: str
+    mode: str
+    model_name: str | None = None
+    executed: bool | None = None
+    fallback_used: bool | None = None
+    note: str | None = None
+
+
 class ImageSize(BaseModel):
     width: int
     height: int
@@ -52,4 +62,48 @@ class UploadResponse(APIStatusResponse):
     saved_upload: str
     image_size: ImageSize | None = None
     ocr_layout_data: OCRLayoutData | None = None
+    layoutlmv3_status: LayoutLMv3Status | None = None
     json_output_file: str | None = None
+
+
+class ModuleJsonOutput(BaseModel):
+    module: str
+    document_type: str
+    features_used: list[str]
+    execution_status: str
+
+
+class PublicUploadResponse(APIStatusResponse):
+    file_name: str
+    module_name: str
+    layoutlmv3_summary: str
+    huggingface_summary: str
+    document_understanding_summary: str
+    json_output: ModuleJsonOutput
+    json_output_file: str | None = None
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Document processed successfully",
+                "file_name": "dummy_invoice_layoutlmv3_test.png",
+                "module_name": "LayoutLMv3 and Hugging Face Document Understanding Module",
+                "layoutlmv3_summary": "LayoutLMv3 analyzed OCR-extracted text together with bounding box positions for layout-aware document understanding.",
+                "huggingface_summary": "The model was accessed through Hugging Face and executed successfully.",
+                "document_understanding_summary": "The module used spatial text positions and layout-aware contextual structure to support invoice understanding.",
+                "json_output": {
+                    "module": "LayoutLMv3 + Hugging Face",
+                    "document_type": "invoice",
+                    "features_used": [
+                        "layout-aware text understanding",
+                        "bounding box analysis",
+                        "OCR text alignment",
+                        "document structure interpretation"
+                    ],
+                    "execution_status": "success"
+                },
+                "json_output_file": "outputs/dummy_invoice_layout_data.json"
+            }
+        }
+    }
