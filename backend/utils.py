@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
-import cv2
-import pandas as pd
 from fastapi import HTTPException, UploadFile
-from PIL import Image
+from openpyxl import Workbook
+from PIL import Image, ImageFilter
 
-from config import ALLOWED_EXTENSIONS, OUTPUT_DIR, SAMPLE_DATA_DIR, UPLOAD_DIR
+try:
+    from .config import ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE_BYTES, OUTPUT_DIR, SAMPLE_DATA_DIR, UPLOAD_DIR
+except ImportError:
+    from config import ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE_BYTES, OUTPUT_DIR, SAMPLE_DATA_DIR, UPLOAD_DIR
 
 
 def ensure_directories() -> None:
@@ -28,28 +32,32 @@ def validate_uploaded_file(file: UploadFile) -> None:
             detail=f"Invalid file type. Allowed file types: {allowed}",
         )
 
+    file_size = getattr(file, "size", None)
+    if file_size and int(file_size) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File exceeds the {MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB upload limit.",
+        )
+
+
+def enforce_saved_file_size(file_path: Path) -> None:
+    if file_path.stat().st_size > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File exceeds the {MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB upload limit.",
+        )
+
 
 def preprocess_image_for_ocr(image_path: str) -> Image.Image:
     """
     Apply a light preprocessing pipeline that improves OCR readability
     without making the mini project difficult to understand.
     """
-    image = cv2.imread(image_path)
-    if image is None:
-        raise ValueError(f"Unable to read image from path: {image_path}")
-
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    denoised = cv2.GaussianBlur(gray, (3, 3), 0)
-    thresholded = cv2.adaptiveThreshold(
-        denoised,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        31,
-        11,
-    )
-    rgb_image = cv2.cvtColor(thresholded, cv2.COLOR_GRAY2RGB)
-    return Image.fromarray(rgb_image)
+    with Image.open(image_path) as source_image:
+        grayscale = source_image.convert("L")
+        denoised = grayscale.filter(ImageFilter.MedianFilter(size=3))
+        thresholded = denoised.point(lambda pixel: 255 if pixel > 160 else 0)
+        return thresholded.convert("RGB")
 
 
 def polygon_to_box(box: Iterable[Iterable[float]]) -> list[int]:
@@ -64,6 +72,9 @@ def polygon_to_box(box: Iterable[Iterable[float]]) -> list[int]:
 
 
 def normalize_box(box: Iterable[Iterable[float]], width: int, height: int) -> list[int]:
+    if width <= 0 or height <= 0:
+        return [0, 0, 0, 0]
+
     x_coordinates = [point[0] for point in box]
     y_coordinates = [point[1] for point in box]
 
@@ -77,11 +88,19 @@ def normalize_box(box: Iterable[Iterable[float]], width: int, height: int) -> li
 def export_to_excel(extracted_data: dict, output_dir: Path, base_filename: str) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    dataframe = pd.DataFrame([extracted_data])
     safe_name = safe_filename(base_filename)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     file_path = output_dir / f"{safe_name}_{timestamp}.xlsx"
-    dataframe.to_excel(file_path, index=False, engine="openpyxl")
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Extraction"
+
+    headers = list(extracted_data.keys())
+    values = [extracted_data.get(header, "") for header in headers]
+    worksheet.append(headers)
+    worksheet.append(values)
+    workbook.save(file_path)
     return file_path
 
 

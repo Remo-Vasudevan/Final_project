@@ -1,203 +1,277 @@
-# Smart Invoice / Document Extractor API
+# Smart Invoice / Document Extractor
 
-A modular FastAPI backend for invoice and document image understanding. The API accepts uploaded images, runs OCR to collect words and bounding boxes, sends the document through LayoutLMv3 for layout-aware processing, applies hybrid rule-based extraction for important invoice fields, and exports the final structured data to Excel.
+This repository contains a FastAPI backend and a lightweight frontend for invoice/document uploads, OCR processing, structured extraction, JSON export, and Excel export.
 
-## Features
+The project is now set up so that:
+- backend startup works from the repository root
+- frontend `npm install`, `npm run build`, and `npm run dev` work
+- PowerShell-safe commands are provided without fragile command chaining
+- Git pushes stay clean with the updated ignore rules
+- deployment can run from the repository root on platforms such as Render or similar Python hosts
+- optional OCR and LayoutLMv3 dependencies no longer block the backend from starting
 
-- FastAPI backend with interactive Swagger UI
-- OCR pipeline using EasyOCR with pytesseract fallback
-- Bounding box normalization for LayoutLMv3 input
-- LayoutLMv3 integration through Hugging Face Transformers
-- Hybrid extraction using OCR text plus regex and rule-based logic
-- Structured JSON response for invoice/document fields
-- Excel export using pandas and openpyxl
-- Auto-creates `uploads/`, `outputs/`, and `sample_data/`
-- Beginner-readable project layout with comments and clear responsibilities
-- GitHub-ready repository structure
-
-## Folder Structure
+## Final Project Structure
 
 ```text
 invoice-extractor/
-|
 |-- backend/
-|   |-- main.py
+|   |-- __init__.py
 |   |-- config.py
 |   |-- extractor.py
 |   |-- layoutlm_service.py
+|   |-- main.py
 |   |-- ocr_service.py
-|   |-- utils.py
+|   |-- requirements-ml.txt
+|   |-- requirements.txt
 |   |-- schemas.py
-|   `-- requirements.txt
-|
-|-- uploads/
-|   `-- .gitkeep
+|   `-- utils.py
+|-- frontend/
+|   |-- dist/
+|   |-- index.html
+|   |-- package-lock.json
+|   |-- package.json
+|   |-- scripts/
+|   |   |-- build.mjs
+|   |   `-- dev-server.mjs
+|   `-- static/
+|       |-- app.js
+|       `-- styles.css
 |-- outputs/
 |   `-- .gitkeep
 |-- sample_data/
-|   `-- README.txt
+|   |-- README.txt
+|   `-- invoice_sample.png
+|-- scripts/
+|   |-- build-frontend.ps1
+|   |-- run-backend.ps1
+|   |-- run-frontend.ps1
+|   `-- setup-backend.ps1
+|-- uploads/
+|   `-- .gitkeep
 |-- .gitignore
-`-- README.md
+|-- Procfile
+|-- README.md
+|-- render.yaml
+|-- requirements.txt
+`-- runtime.txt
 ```
 
-## How It Works
+## What Was Fixed
 
-1. Upload an invoice or document image to the `/upload` endpoint.
-2. The backend saves the file in `uploads/`.
-3. OCR extracts words, confidence scores, and bounding boxes.
-4. Bounding boxes are normalized to the 0 to 1000 LayoutLM format.
-5. LayoutLMv3 processes the image plus OCR tokens for layout-aware understanding.
-6. Hybrid extraction logic detects invoice fields from OCR text.
-7. Extracted fields are exported to an Excel file in `outputs/`.
-8. OCR layout data and metadata are saved as JSON in `outputs/`.
-9. The API returns structured JSON including file paths and model notes.
+### Terminal execution issues
+- Added PowerShell-safe helper scripts in [scripts/setup-backend.ps1](D:/layoutMv3/invoice-extractor/scripts/setup-backend.ps1), [scripts/run-backend.ps1](D:/layoutMv3/invoice-extractor/scripts/run-backend.ps1), [scripts/run-frontend.ps1](D:/layoutMv3/invoice-extractor/scripts/run-frontend.ps1), and [scripts/build-frontend.ps1](D:/layoutMv3/invoice-extractor/scripts/build-frontend.ps1)
+- Standardized root-level commands so you do not need brittle `&` command chaining in the VS Code terminal
 
-## Installation
+### Backend issues
+- Made OCR and LayoutLMv3 imports lazy/optional in [backend/ocr_service.py](D:/layoutMv3/invoice-extractor/backend/ocr_service.py) and [backend/layoutlm_service.py](D:/layoutMv3/invoice-extractor/backend/layoutlm_service.py)
+- Replaced the Excel export dependency path in [backend/utils.py](D:/layoutMv3/invoice-extractor/backend/utils.py) with a direct `openpyxl` implementation so startup is lighter and deployment is safer
+- Kept FastAPI routing and upload logic intact in [backend/main.py](D:/layoutMv3/invoice-extractor/backend/main.py)
 
-### 1. Open in VS Code
+### Frontend issues
+- Added a real frontend Node project in [frontend/package.json](D:/layoutMv3/invoice-extractor/frontend/package.json)
+- Added a frontend build script in [frontend/scripts/build.mjs](D:/layoutMv3/invoice-extractor/frontend/scripts/build.mjs)
+- Added a frontend dev server with backend proxy support in [frontend/scripts/dev-server.mjs](D:/layoutMv3/invoice-extractor/frontend/scripts/dev-server.mjs)
+- Verified the frontend build output in [frontend/dist/index.html](D:/layoutMv3/invoice-extractor/frontend/dist/index.html)
 
-Open the `invoice-extractor` folder in VS Code.
+### Dependency issues
+- Split dependencies into:
+  - base backend dependencies in [backend/requirements.txt](D:/layoutMv3/invoice-extractor/backend/requirements.txt)
+  - optional advanced OCR/ML dependencies in [backend/requirements-ml.txt](D:/layoutMv3/invoice-extractor/backend/requirements-ml.txt)
+- Added root [requirements.txt](D:/layoutMv3/invoice-extractor/requirements.txt) for deployment platforms that install from repo root
 
-### 2. Create a virtual environment
+### Git and deployment issues
+- Updated [/.gitignore](D:/layoutMv3/invoice-extractor/.gitignore) for Python, frontend, and runtime artifacts
+- Added [Procfile](D:/layoutMv3/invoice-extractor/Procfile), [runtime.txt](D:/layoutMv3/invoice-extractor/runtime.txt), and [render.yaml](D:/layoutMv3/invoice-extractor/render.yaml)
+- Confirmed `origin` already points to `https://github.com/Remo-Vasudevan/Final_project.git`
 
-From the project root:
+## Verified Checks
+
+These checks were executed successfully:
+- `python -m compileall .\backend`
+- `python -c "import backend.main; print(backend.main.app.title)"`
+- `npm install` inside `frontend`
+- `npm run build` inside `frontend`
+- backend startup on `http://127.0.0.1:8001`
+- `GET /health`
+- `GET /docs`
+- `POST /upload` with `sample_data/invoice_sample.png`
+- frontend dev server startup on `http://127.0.0.1:4173`
+- frontend proxy request to backend `/health`
+
+## PowerShell-Safe Local Setup
+
+Open VS Code terminal at:
+
+```powershell
+D:\layoutMv3\invoice-extractor
+```
+
+### 1. Create the virtual environment if needed
 
 ```powershell
 python -m venv venv
 ```
 
-### 3. Activate the environment
-
-Windows PowerShell:
+### 2. Install backend dependencies
 
 ```powershell
-.\venv\Scripts\Activate.ps1
+.\scripts\setup-backend.ps1
 ```
 
-Windows Command Prompt:
-
-```cmd
-venv\Scripts\activate.bat
-```
-
-macOS/Linux:
-
-```bash
-source venv/bin/activate
-```
-
-### 4. Install dependencies
+### 3. Install frontend dependencies
 
 ```powershell
-pip install -r .\backend\requirements.txt
+Set-Location .\frontend
+npm install
+Set-Location ..
 ```
 
-## Run the Backend
+## Run The Backend
 
-From the project root:
+### Preferred command
 
 ```powershell
-cd backend
-..\venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8001 --reload
+.\scripts\run-backend.ps1
 ```
 
-Open the docs UI:
+### Run on a different port
+
+```powershell
+.\scripts\run-backend.ps1 -Port 8002
+```
+
+### Backend links
+
+If you use port `8001`:
+- `http://127.0.0.1:8001/`
+- `http://127.0.0.1:8001/health`
+- `http://127.0.0.1:8001/docs`
+- `http://127.0.0.1:8001/openapi.json`
+
+## Run The Frontend
+
+### Preferred command
+
+```powershell
+.\scripts\run-frontend.ps1
+```
+
+### Frontend link
+
+- `http://127.0.0.1:4173/`
+
+The frontend dev server proxies API traffic to `http://127.0.0.1:8001` by default.
+
+## Build The Frontend
+
+### Preferred command
+
+```powershell
+.\scripts\build-frontend.ps1
+```
+
+### Generated build folder
+
+- `frontend\dist\`
+
+## Optional Advanced OCR / LayoutLMv3 Setup
+
+If you want the richer OCR/ML stack in a compatible Python environment such as Python `3.11.x`, install:
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r .\backend\requirements-ml.txt
+```
+
+Notes:
+- Base backend startup no longer depends on these packages.
+- `easyocr`, `torch`, `transformers`, and `pytesseract` are optional.
+- `pytesseract` still requires the Tesseract OCR system binary if you want that fallback engine available.
+
+## Upload Test Command
+
+With the backend running:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8001/upload -F "file=@sample_data/invoice_sample.png"
+```
+
+## GitHub Push Commands
+
+Current branch:
+- `main`
+
+Remote:
+- `origin -> https://github.com/Remo-Vasudevan/Final_project.git`
+
+Safe push flow:
+
+```powershell
+git status
+git add .
+git commit -m "Stabilize backend frontend and deployment workflow"
+git push origin main
+```
+
+## Deployment Steps
+
+### Recommended deployment shape
+Deploy the FastAPI backend as the main web service. It already serves the frontend at `/`, so you do not need a separate frontend deployment unless you want one.
+
+### Render deployment
+1. Push this repository to GitHub.
+2. Create a new Render Web Service from the repository.
+3. Render can use the included `render.yaml`, or use these values manually:
 
 ```text
-http://127.0.0.1:8001/docs
+Build Command: pip install -r requirements.txt
+Start Command: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
-## API Endpoints
+4. After deploy, open the service root URL.
+5. Expected hosted links:
+   - `/`
+   - `/health`
+   - `/docs`
 
-### `GET /`
-Returns a simple API status message.
+### Generic Python host deployment
+Use:
 
-### `GET /health`
-Returns a health-check response.
-
-### `POST /upload`
-Uploads an invoice or document image and returns structured extracted data.
-
-Supported file types:
-
-- `.jpg`
-- `.jpeg`
-- `.png`
-- `.bmp`
-- `.tif`
-- `.tiff`
-
-## Example Request
-
-Using cURL:
-
-```bash
-curl -X POST "http://127.0.0.1:8001/upload" \
-  -H "accept: application/json" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@../sample_data/invoice_sample.png"
+```text
+pip install -r requirements.txt
+python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
-## Example JSON Response
+## Final Verification Checklist
 
-```json
-{
-  "status": "success",
-  "message": "Document processed successfully",
-  "file_name": "invoice1.png",
-  "document_type": "invoice",
-  "image_size": {
-    "width": 1400,
-    "height": 1900
-  },
-  "ocr_layout_data": {
-    "full_text": "Invoice\nABC Trading Company",
-    "words": ["Invoice", "ABC", "Trading", "Company"],
-    "bounding_boxes": [[80, 60, 250, 110]],
-    "normalized_boxes": [[57, 31, 178, 57]]
-  },
-  "extracted_data": {
-    "invoice_number": "INV-2026-001",
-    "invoice_date": "12/03/2026",
-    "vendor_name": "ABC Trading Company",
-    "total_amount": "15450.00",
-    "tax_amount": "2450.00",
-    "address": "21 Market Road, Mumbai 400001",
-    "phone_number": "+91 9876543210"
-  },
-  "excel_file": "outputs/invoice1_20260326_101500.xlsx",
-  "json_output_file": "outputs/invoice1_layout_data_20260326_101500.json",
-  "saved_upload": "uploads/6c4e5f1f2f7148249f2d140f3fb7a3b8.png",
-  "raw_text": "Invoice\nABC Trading Company\nInvoice No: INV-2026-001\nDate: 12/03/2026\nTotal: 15450.00",
-  "confidence_note": "Hybrid OCR + rule-based extraction with LayoutLMv3 support. Average OCR confidence: 91.42%. Base LayoutLMv3 embeddings are available. Invoice field extraction still relies on OCR + rules until a fine-tuned key-value model is added.",
-  "layoutlm_summary": {
-    "model_name": "microsoft/layoutlmv3-base",
-    "token_count": 103,
-    "embedding_preview": [0.1034, -0.2941, 0.0198, 0.2271, -0.1844, 0.0902, 0.0141, -0.0437],
-    "note": "Base LayoutLMv3 embeddings are available. Invoice field extraction still relies on OCR + rules until a fine-tuned key-value model is added."
-  }
-}
-```
+- backend dependencies install without errors
+- frontend dependencies install without errors
+- backend starts from repo root without import/path failures
+- frontend dev server starts from repo root without folder confusion
+- `/` opens correctly
+- `/health` returns success
+- `/docs` opens correctly
+- upload request returns HTTP 200
+- JSON output is generated in `outputs/`
+- Excel output is generated in `outputs/`
+- `npm run build` succeeds
+- `git push origin main` works from the correct remote
+- deployment installs from root `requirements.txt`
+- deployed root URL opens correctly
+
+## Expected Links
+
+### Local
+- Backend root: `http://127.0.0.1:8001/`
+- Backend docs: `http://127.0.0.1:8001/docs`
+- Frontend dev server: `http://127.0.0.1:4173/`
+
+### Deployment
+- Root app: `https://<your-service-domain>/`
+- Health endpoint: `https://<your-service-domain>/health`
+- Docs: `https://<your-service-domain>/docs`
 
 ## Notes
 
-- EasyOCR is the primary OCR engine, and pytesseract is used as a fallback when EasyOCR is unavailable.
-- LayoutLMv3 is used for layout-aware embeddings and document context. Exact field extraction still relies on OCR plus regex/rule logic unless a fine-tuned key-value model is added.
-- On the first successful LayoutLMv3 run, Hugging Face may download model files into the local cache.
-
-## Run Instructions in VS Code
-
-1. Open the project root in VS Code.
-2. Open a terminal in VS Code.
-3. Run:
-
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r .\backend\requirements.txt
-cd backend
-..\venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8001 --reload
-```
-
-4. Open [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
-5. Use the `POST /upload` endpoint to test with an image from `sample_data/`
+- The backend preserves the existing extraction flow and only hardens failure points.
+- Optional OCR/ML packages can still be added later without changing the API surface.
+- The easiest production model is a single FastAPI deployment serving both API and frontend.

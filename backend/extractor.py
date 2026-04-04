@@ -1,13 +1,30 @@
+from __future__ import annotations
+
 import logging
 import re
 from statistics import mean
 from typing import Any
 
-from layoutlm_service import analyze_document_layout
-from ocr_service import extract_ocr_data
+try:
+    from .layoutlm_service import analyze_document_layout
+    from .ocr_service import extract_ocr_data
+except ImportError:
+    from layoutlm_service import analyze_document_layout
+    from ocr_service import extract_ocr_data
 
 
 logger = logging.getLogger(__name__)
+
+
+EMPTY_FIELDS = {
+    "invoice_number": "Not found",
+    "invoice_date": "Not found",
+    "vendor_name": "Not found",
+    "total_amount": "Not found",
+    "tax_amount": "Not found",
+    "address": "Not found",
+    "phone_number": "Not found",
+}
 
 
 def _clean_value(value: str | None) -> str:
@@ -150,22 +167,24 @@ def build_confidence_note(ocr_confidences: list[float], layoutlm_note: str) -> s
 def build_extraction_result(image_path, original_filename: str) -> dict[str, Any]:
     ocr_result = extract_ocr_data(str(image_path))
     raw_text = ocr_result["raw_text"]
-    if not raw_text.strip():
-        raise ValueError("OCR did not detect any readable text in the uploaded document.")
 
-    # LayoutLMv3 is additive here: the existing OCR + rules path remains the fallback.
     layoutlm_result = analyze_document_layout(
         image=ocr_result["image"],
         words=ocr_result["words"],
         boxes=ocr_result["boxes"],
+        entries=ocr_result["entries"],
         raw_text=raw_text,
     )
 
-    extracted_data = build_extracted_fields(raw_text, [entry["text"] for entry in ocr_result["entries"]])
+    entry_lines = [entry["text"] for entry in ocr_result["entries"]]
+    extracted_data = build_extracted_fields(raw_text, entry_lines) if raw_text.strip() else dict(EMPTY_FIELDS)
+
     confidence_note = build_confidence_note(
         ocr_confidences=ocr_result["confidences"],
         layoutlm_note=layoutlm_result["note"],
     )
+    if ocr_result.get("note"):
+        confidence_note = f"{confidence_note} {ocr_result['note']}"
 
     logger.info("Hybrid extraction completed for %s", original_filename)
     return {
@@ -180,6 +199,7 @@ def build_extraction_result(image_path, original_filename: str) -> dict[str, Any
             "normalized_boxes": ocr_result["normalized_boxes"],
         },
         "layoutlmv3_status": layoutlm_result["layoutlmv3_status"],
+        "document_layout_analysis": layoutlm_result["document_layout_analysis"],
         "confidence_note": confidence_note,
         "layoutlm_summary": {
             "model_name": layoutlm_result["model_name"],

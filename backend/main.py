@@ -1,16 +1,41 @@
+from __future__ import annotations
+
 import json
 import logging
 import shutil
 from pathlib import Path
+from urllib.parse import urljoin
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 
-from config import API_DESCRIPTION, API_TITLE, API_VERSION, OUTPUT_DIR, UPLOAD_DIR
-from extractor import build_extraction_result
-from schemas import APIStatusResponse, HealthResponse, ModuleJsonOutput, PublicUploadResponse
-from utils import ensure_directories, export_to_excel, save_layout_json, to_relative_api_path, validate_uploaded_file
+try:
+    from .config import API_DESCRIPTION, API_TITLE, API_VERSION, FRONTEND_DIR, OUTPUT_DIR, UPLOAD_DIR
+    from .extractor import build_extraction_result
+    from .schemas import APIStatusResponse, ModuleJsonOutput, PublicUploadResponse
+    from .utils import (
+        enforce_saved_file_size,
+        ensure_directories,
+        export_to_excel,
+        save_layout_json,
+        to_relative_api_path,
+        validate_uploaded_file,
+    )
+except ImportError:
+    from config import API_DESCRIPTION, API_TITLE, API_VERSION, FRONTEND_DIR, OUTPUT_DIR, UPLOAD_DIR
+    from extractor import build_extraction_result
+    from schemas import APIStatusResponse, ModuleJsonOutput, PublicUploadResponse
+    from utils import (
+        enforce_saved_file_size,
+        ensure_directories,
+        export_to_excel,
+        save_layout_json,
+        to_relative_api_path,
+        validate_uploaded_file,
+    )
 
 
 logging.basicConfig(
@@ -34,15 +59,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/outputs", StaticFiles(directory=OUTPUT_DIR), name="outputs")
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="frontend-static")
 
 
-@app.get("/", response_model=HealthResponse)
-def read_root() -> HealthResponse:
-    return HealthResponse(
-        status="success",
-        message="Smart Invoice / Document Extractor API is running",
-        docs_url="/docs",
-    )
+@app.get("/", include_in_schema=False)
+def read_root() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "index.html")
 
 
 @app.get("/health", response_model=APIStatusResponse)
@@ -53,17 +77,18 @@ def health_check() -> APIStatusResponse:
     )
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> Response:
+    return Response(status_code=204)
+
+
 @app.post(
     "/upload",
     response_model=PublicUploadResponse,
     response_description="Returns the executed LayoutLMv3 and Hugging Face document understanding summary.",
-    responses={
-        200: {
-            "description": "Module-focused response shown after successful execution."
-        }
-    },
+    responses={200: {"description": "Module-focused response shown after successful execution."}},
 )
-async def upload_document(file: UploadFile = File(...)) -> PublicUploadResponse:
+async def upload_document(request: Request, file: UploadFile = File(...)) -> PublicUploadResponse:
     validate_uploaded_file(file)
 
     file_extension = Path(file.filename).suffix.lower()
@@ -73,21 +98,31 @@ async def upload_document(file: UploadFile = File(...)) -> PublicUploadResponse:
     try:
         with saved_file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+        enforce_saved_file_size(saved_file_path)
         logger.info("Saved uploaded file to %s", saved_file_path)
+    except HTTPException:
+        if saved_file_path.exists():
+            saved_file_path.unlink(missing_ok=True)
+        raise
     except Exception as exc:
         logger.exception("Failed to save uploaded file")
+        if saved_file_path.exists():
+            saved_file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Failed to save file: {exc}") from exc
     finally:
         await file.close()
 
     try:
         extraction_payload = build_extraction_result(saved_file_path, original_filename=file.filename)
+        root_url = str(request.base_url)
+        docs_url = urljoin(root_url, "docs")
         excel_path = export_to_excel(
             extracted_data=extraction_payload["extracted_data"],
             output_dir=OUTPUT_DIR,
             base_filename=Path(file.filename).stem,
         )
 
+        excel_relative_path = to_relative_api_path(excel_path, OUTPUT_DIR.parent)
         layout_json_payload = {
             "status": "success",
             "message": "Document processed successfully",
@@ -95,12 +130,17 @@ async def upload_document(file: UploadFile = File(...)) -> PublicUploadResponse:
             "image_size": extraction_payload["image_size"],
             "ocr_layout_data": extraction_payload["ocr_layout_data"],
             "layoutlmv3_status": extraction_payload["layoutlmv3_status"],
+            "document_layout_analysis": extraction_payload["document_layout_analysis"],
             "extracted_data": extraction_payload["extracted_data"],
             "extracted_fields": extraction_payload["extracted_data"],
+            "confidence_note": extraction_payload["confidence_note"],
+            "layoutlm_summary": extraction_payload["layoutlm_summary"],
             "file_metadata": {
                 "saved_upload": to_relative_api_path(saved_file_path, UPLOAD_DIR.parent),
                 "content_type": file.content_type or "application/octet-stream",
             },
+            "web_links": {"root_url": root_url, "docs_url": docs_url},
+            "excel_file": excel_relative_path,
         }
         json_output_path = save_layout_json(
             data=layout_json_payload,
@@ -109,7 +149,8 @@ async def upload_document(file: UploadFile = File(...)) -> PublicUploadResponse:
         )
         json_relative_path = to_relative_api_path(json_output_path, OUTPUT_DIR.parent)
         layout_json_payload["json_output_file"] = json_relative_path
-        layout_json_payload["excel_file"] = to_relative_api_path(excel_path, OUTPUT_DIR.parent)
+        layout_json_payload["json_output_url"] = urljoin(root_url, json_relative_path)
+        layout_json_payload["excel_file_url"] = urljoin(root_url, excel_relative_path)
         json_output_path.write_text(
             json.dumps(layout_json_payload, indent=2, ensure_ascii=False),
             encoding="utf-8",
@@ -117,7 +158,7 @@ async def upload_document(file: UploadFile = File(...)) -> PublicUploadResponse:
 
         layout_status = extraction_payload["layoutlmv3_status"]
         layout_executed = bool(layout_status.get("executed"))
-        huggingface_connected = bool(layout_status.get("enabled"))
+        document_layout_status = extraction_payload["document_layout_analysis"]["execution_status"]
 
         response = PublicUploadResponse(
             status="success",
@@ -144,10 +185,17 @@ async def upload_document(file: UploadFile = File(...)) -> PublicUploadResponse:
                     "bounding box analysis",
                     "OCR text alignment",
                     "document structure interpretation",
+                    "layout region visibility",
                 ],
-                execution_status="success" if huggingface_connected else "fallback",
+                execution_status=document_layout_status,
             ),
             json_output_file=json_relative_path,
+            json_output_url=urljoin(root_url, json_relative_path),
+            excel_file=excel_relative_path,
+            excel_file_url=urljoin(root_url, excel_relative_path),
+            document_layout_analysis_status=document_layout_status,
+            root_url=root_url,
+            docs_url=docs_url,
         )
         logger.info("Processing finished for %s", file.filename)
         return response

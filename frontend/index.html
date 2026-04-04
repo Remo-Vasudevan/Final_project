@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Invoice Extractor</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <p class="eyebrow">Document Understanding</p>
+        <h1>Smart Invoice Extractor</h1>
+        <p class="intro">
+          Upload an invoice or document image to run OCR, generate structured extraction data,
+          and download the resulting JSON and Excel outputs.
+        </p>
+      </section>
+
+      <section class="panel">
+        <form id="upload-form" class="upload-form">
+          <label class="file-picker" for="file-input">
+            <span>Select invoice image</span>
+            <input id="file-input" name="file" type="file" accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff" required />
+          </label>
+          <button id="submit-button" type="submit">Process Document</button>
+        </form>
+
+        <div id="status" class="status" aria-live="polite">Waiting for upload.</div>
+
+        <section id="result" class="result hidden">
+          <h2>Processing Result</h2>
+          <dl class="result-grid">
+            <div>
+              <dt>File name</dt>
+              <dd id="result-file-name">-</dd>
+            </div>
+            <div>
+              <dt>Module</dt>
+              <dd id="result-module">-</dd>
+            </div>
+            <div>
+              <dt>Analysis status</dt>
+              <dd id="result-analysis-status">-</dd>
+            </div>
+            <div>
+              <dt>Document type</dt>
+              <dd id="result-document-type">-</dd>
+            </div>
+          </dl>
+
+          <div class="link-row">
+            <a id="json-link" href="#" target="_blank" rel="noreferrer" class="action-link hidden">Open JSON output</a>
+            <a id="excel-link" href="#" target="_blank" rel="noreferrer" class="action-link hidden">Open Excel output</a>
+            <a href="/docs" target="_blank" rel="noreferrer" class="action-link">Open API docs</a>
+          </div>
+
+          <div class="summary-block">
+            <h3>Module Summary</h3>
+            <p id="layout-summary">-</p>
+            <p id="hf-summary">-</p>
+            <p id="du-summary">-</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

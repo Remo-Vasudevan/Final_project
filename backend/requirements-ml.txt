@@ -1,0 +1,5 @@
+transformers>=4.39.0,<6.0.0
+torch>=2.2.0,<3.0.0
+torchvision>=0.17.0,<1.0.0
+easyocr>=1.7.0,<2.0.0
+pytesseract>=0.3.10,<1.0.0

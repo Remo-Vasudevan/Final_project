@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 backend/__pycache__/
 *.py[cod]
@@ -19,6 +19,7 @@ env/
 .idea/
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 
 # OS files
 .DS_Store
@@ -30,8 +31,14 @@ outputs/*
 !uploads/.gitkeep
 !outputs/.gitkeep
 
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+backend/package-lock.json
+
 # Logs
 *.log
+npm-debug.log*
 
 # Model caches
 .huggingface/

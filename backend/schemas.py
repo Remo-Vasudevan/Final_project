@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -81,6 +83,12 @@ class PublicUploadResponse(APIStatusResponse):
     document_understanding_summary: str
     json_output: ModuleJsonOutput
     json_output_file: str | None = None
+    json_output_url: str | None = None
+    excel_file: str | None = None
+    excel_file_url: str | None = None
+    document_layout_analysis_status: str | None = None
+    root_url: str | None = None
+    docs_url: str | None = None
 
     model_config = {
         "json_schema_extra": {
@@ -103,7 +111,13 @@ class PublicUploadResponse(APIStatusResponse):
                     ],
                     "execution_status": "success"
                 },
-                "json_output_file": "outputs/dummy_invoice_layout_data.json"
+                "json_output_file": "outputs/dummy_invoice_layout_data.json",
+                "json_output_url": "http://127.0.0.1:8001/outputs/dummy_invoice_layout_data.json",
+                "excel_file": "outputs/dummy_invoice_20260402_094500.xlsx",
+                "excel_file_url": "http://127.0.0.1:8001/outputs/dummy_invoice_20260402_094500.xlsx",
+                "document_layout_analysis_status": "success",
+                "root_url": "http://127.0.0.1:8001/",
+                "docs_url": "http://127.0.0.1:8001/docs"
             }
         }
     }
