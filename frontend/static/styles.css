@@ -48,7 +48,8 @@ h2,
 h3,
 p,
 dl,
-dd {
+dd,
+pre {
   margin: 0;
 }
 
@@ -133,7 +134,8 @@ button:disabled {
 }
 
 .result-grid div,
-.summary-block {
+.summary-block,
+.report-preview-block {
   padding: 16px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.78);
@@ -174,6 +176,38 @@ dd {
   line-height: 1.6;
 }
 
+.report-preview-block {
+  display: grid;
+  gap: 14px;
+}
+
+.report-preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.report-preview-note {
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.report-preview {
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(94, 72, 49, 0.12);
+  background: linear-gradient(180deg, rgba(252, 249, 244, 0.98), rgba(247, 241, 232, 0.92));
+  color: #2c2119;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  min-height: 220px;
+}
+
 .hidden {
   display: none;
 }
@@ -194,5 +228,9 @@ dd {
 
   button {
     width: 100%;
+  }
+
+  .report-preview {
+    font-size: 0.86rem;
   }
 }

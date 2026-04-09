@@ -66,6 +66,8 @@ class UploadResponse(APIStatusResponse):
     ocr_layout_data: OCRLayoutData | None = None
     layoutlmv3_status: LayoutLMv3Status | None = None
     json_output_file: str | None = None
+    text_report_file: str | None = None
+    text_report_preview: str | None = None
 
 
 class ModuleJsonOutput(BaseModel):
@@ -86,6 +88,9 @@ class PublicUploadResponse(APIStatusResponse):
     json_output_url: str | None = None
     excel_file: str | None = None
     excel_file_url: str | None = None
+    text_report_file: str | None = None
+    text_report_url: str | None = None
+    text_report_preview: str | None = None
     document_layout_analysis_status: str | None = None
     root_url: str | None = None
     docs_url: str | None = None
@@ -115,6 +120,9 @@ class PublicUploadResponse(APIStatusResponse):
                 "json_output_url": "http://127.0.0.1:8001/outputs/dummy_invoice_layout_data.json",
                 "excel_file": "outputs/dummy_invoice_20260402_094500.xlsx",
                 "excel_file_url": "http://127.0.0.1:8001/outputs/dummy_invoice_20260402_094500.xlsx",
+                "text_report_file": "outputs/dummy_invoice_analysis_report_20260408_150000.txt",
+                "text_report_url": "http://127.0.0.1:8001/report/dummy_invoice_analysis_report_20260408_150000.txt",
+                "text_report_preview": "DOCUMENT ANALYSIS REPORT\n========================\n...",
                 "document_layout_analysis_status": "success",
                 "root_url": "http://127.0.0.1:8001/",
                 "docs_url": "http://127.0.0.1:8001/docs"

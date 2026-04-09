@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 try:
     from .config import API_DESCRIPTION, API_TITLE, API_VERSION, FRONTEND_DIR, OUTPUT_DIR, UPLOAD_DIR
     from .extractor import build_extraction_result
+    from .report_generator import generate_structured_report, save_structured_report
     from .schemas import APIStatusResponse, ModuleJsonOutput, PublicUploadResponse
     from .utils import (
         enforce_saved_file_size,
@@ -27,6 +28,7 @@ try:
 except ImportError:
     from config import API_DESCRIPTION, API_TITLE, API_VERSION, FRONTEND_DIR, OUTPUT_DIR, UPLOAD_DIR
     from extractor import build_extraction_result
+    from report_generator import generate_structured_report, save_structured_report
     from schemas import APIStatusResponse, ModuleJsonOutput, PublicUploadResponse
     from utils import (
         enforce_saved_file_size,
@@ -64,6 +66,19 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="frontend-static")
 
 
+def _resolve_report_path(report_name: str) -> Path:
+    candidate = Path(report_name)
+    if candidate.name != report_name or candidate.suffix.lower() != ".txt":
+        raise HTTPException(status_code=404, detail="Report not found.")
+
+    report_path = (OUTPUT_DIR / candidate.name).resolve()
+    output_root = OUTPUT_DIR.resolve()
+    if output_root not in report_path.parents or not report_path.exists():
+        raise HTTPException(status_code=404, detail="Report not found.")
+
+    return report_path
+
+
 @app.get("/", include_in_schema=False)
 def read_root() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
@@ -75,6 +90,12 @@ def health_check() -> APIStatusResponse:
         status="success",
         message="Service is healthy",
     )
+
+
+@app.get("/report/{report_name}", include_in_schema=False)
+def open_structured_report(report_name: str) -> FileResponse:
+    report_path = _resolve_report_path(report_name)
+    return FileResponse(report_path, media_type="text/plain; charset=utf-8", filename=report_path.name)
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -127,6 +148,7 @@ async def upload_document(request: Request, file: UploadFile = File(...)) -> Pub
             "status": "success",
             "message": "Document processed successfully",
             "file_name": file.filename,
+            "document_type": extraction_payload["document_type"],
             "image_size": extraction_payload["image_size"],
             "ocr_layout_data": extraction_payload["ocr_layout_data"],
             "layoutlmv3_status": extraction_payload["layoutlmv3_status"],
@@ -151,10 +173,26 @@ async def upload_document(request: Request, file: UploadFile = File(...)) -> Pub
         layout_json_payload["json_output_file"] = json_relative_path
         layout_json_payload["json_output_url"] = urljoin(root_url, json_relative_path)
         layout_json_payload["excel_file_url"] = urljoin(root_url, excel_relative_path)
+
+        # Generate a notepad-style report after the JSON payload is finalized.
+        report_text = generate_structured_report(layout_json_payload)
+        report_path = save_structured_report(
+            report_text=report_text,
+            output_dir=OUTPUT_DIR,
+            base_filename=Path(file.filename).stem,
+        )
+        report_relative_path = to_relative_api_path(report_path, OUTPUT_DIR.parent)
+        report_route = f"report/{report_path.name}"
+        layout_json_payload["text_report_file"] = report_relative_path
+        layout_json_payload["text_report_url"] = urljoin(root_url, report_route)
+        layout_json_payload["text_report_preview"] = report_text
+
         json_output_path.write_text(
             json.dumps(layout_json_payload, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+
+        print(report_text, flush=True)
 
         layout_status = extraction_payload["layoutlmv3_status"]
         layout_executed = bool(layout_status.get("executed"))
@@ -193,6 +231,9 @@ async def upload_document(request: Request, file: UploadFile = File(...)) -> Pub
             json_output_url=urljoin(root_url, json_relative_path),
             excel_file=excel_relative_path,
             excel_file_url=urljoin(root_url, excel_relative_path),
+            text_report_file=report_relative_path,
+            text_report_url=urljoin(root_url, report_route),
+            text_report_preview=report_text,
             document_layout_analysis_status=document_layout_status,
             root_url=root_url,
             docs_url=docs_url,

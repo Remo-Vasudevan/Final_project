@@ -14,7 +14,11 @@ const resultFields = {
   duSummary: document.getElementById("du-summary"),
   jsonLink: document.getElementById("json-link"),
   excelLink: document.getElementById("excel-link"),
+  reportLink: document.getElementById("report-link"),
+  reportPreview: document.getElementById("structured-report-preview"),
 };
+
+const DEFAULT_REPORT_PREVIEW = "Report preview will appear here after processing.";
 
 function setStatus(message, isError = false) {
   statusBox.textContent = message;
@@ -33,6 +37,17 @@ function setLink(element, href) {
   element.classList.add("hidden");
 }
 
+function setReportPreview(previewText) {
+  resultFields.reportPreview.textContent = previewText || "Not Detected";
+}
+
+function resetResultView() {
+  setLink(resultFields.jsonLink, "");
+  setLink(resultFields.excelLink, "");
+  setLink(resultFields.reportLink, "");
+  resultFields.reportPreview.textContent = DEFAULT_REPORT_PREVIEW;
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -48,6 +63,7 @@ form.addEventListener("submit", async (event) => {
   submitButton.disabled = true;
   setStatus("Uploading and processing document...");
   resultSection.classList.add("hidden");
+  resetResultView();
 
   try {
     const response = await fetch("/upload", {
@@ -68,8 +84,11 @@ form.addEventListener("submit", async (event) => {
     resultFields.layoutSummary.textContent = data.layoutlmv3_summary || "-";
     resultFields.hfSummary.textContent = data.huggingface_summary || "-";
     resultFields.duSummary.textContent = data.document_understanding_summary || "-";
+
     setLink(resultFields.jsonLink, data.json_output_url);
     setLink(resultFields.excelLink, data.excel_file_url);
+    setLink(resultFields.reportLink, data.text_report_url);
+    setReportPreview(data.text_report_preview);
 
     setStatus("Document processed successfully.");
     resultSection.classList.remove("hidden");

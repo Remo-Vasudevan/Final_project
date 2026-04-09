@@ -13,7 +13,7 @@
         <h1>Smart Invoice Extractor</h1>
         <p class="intro">
           Upload an invoice or document image to run OCR, generate structured extraction data,
-          and download the resulting JSON and Excel outputs.
+          and download the resulting JSON, Excel, and structured TXT report outputs.
         </p>
       </section>
 
@@ -52,6 +52,7 @@
           <div class="link-row">
             <a id="json-link" href="#" target="_blank" rel="noreferrer" class="action-link hidden">Open JSON output</a>
             <a id="excel-link" href="#" target="_blank" rel="noreferrer" class="action-link hidden">Open Excel output</a>
+            <a id="report-link" href="#" target="_blank" rel="noreferrer" class="action-link hidden">Open Structured Report</a>
             <a href="/docs" target="_blank" rel="noreferrer" class="action-link">Open API docs</a>
           </div>
 
@@ -60,6 +61,14 @@
             <p id="layout-summary">-</p>
             <p id="hf-summary">-</p>
             <p id="du-summary">-</p>
+          </div>
+
+          <div class="report-preview-block">
+            <div class="report-preview-head">
+              <h3>Structured Report Preview</h3>
+              <span class="report-preview-note">Notepad-style TXT output preview</span>
+            </div>
+            <pre id="structured-report-preview" class="report-preview">Report preview will appear here after processing.</pre>
           </div>
         </section>
       </section>
