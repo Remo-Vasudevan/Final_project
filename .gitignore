@@ -9,6 +9,8 @@ backend/__pycache__/
 venv/
 .venv/
 env/
+backend/venv/
+backend/.venv/
 
 # Environment files
 .env
@@ -39,6 +41,9 @@ backend/package-lock.json
 # Logs
 *.log
 npm-debug.log*
+*-test.log
+*-test-error.log
+*.err.log
 
 # Model caches
 .huggingface/

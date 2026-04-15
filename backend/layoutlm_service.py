@@ -7,9 +7,9 @@ from typing import Any
 from PIL import Image
 
 try:
-    from .config import LAYOUTLM_MAX_TOKENS, MODEL_NAME
+    from .config import LAYOUTLM_ALLOW_DOWNLOAD, LAYOUTLM_MAX_TOKENS, MODEL_NAME
 except ImportError:
-    from config import LAYOUTLM_MAX_TOKENS, MODEL_NAME
+    from config import LAYOUTLM_ALLOW_DOWNLOAD, LAYOUTLM_MAX_TOKENS, MODEL_NAME
 
 
 logger = logging.getLogger(__name__)
@@ -73,9 +73,15 @@ def get_layoutlm_components() -> tuple[Any, Any, Any]:
             "to enable layout-aware model execution."
         ) from exc
 
-    logger.info("Loading LayoutLMv3 processor and model: %s", MODEL_NAME)
-    processor = LayoutLMv3Processor.from_pretrained(MODEL_NAME, apply_ocr=False)
-    model = LayoutLMv3Model.from_pretrained(MODEL_NAME)
+    pretrained_options = {
+        "local_files_only": not LAYOUTLM_ALLOW_DOWNLOAD,
+    }
+    processor = LayoutLMv3Processor.from_pretrained(
+        MODEL_NAME,
+        apply_ocr=False,
+        **pretrained_options,
+    )
+    model = LayoutLMv3Model.from_pretrained(MODEL_NAME, **pretrained_options)
     model.eval()
     return processor, model, torch
 
@@ -434,7 +440,6 @@ def analyze_document_layout(
             "Invoice field extraction still relies on OCR + rules until a fine-tuned key-value model is added."
         )
 
-        logger.info("LayoutLMv3 processed %s tokens", token_count)
         layoutlm_status = {
             "enabled": True,
             "source": "Hugging Face",
@@ -457,7 +462,8 @@ def analyze_document_layout(
         logger.warning("LayoutLMv3 analysis skipped: %s", exc)
         note = (
             "LayoutLMv3 could not be loaded or executed in this environment, "
-            "so the API continued with OCR + rule-based extraction only."
+            "so the API continued with OCR + rule-based extraction only. "
+            "Set LAYOUTLM_ALLOW_DOWNLOAD=true if you want the backend to fetch model files automatically."
         )
         layoutlm_status = {
             "enabled": False,

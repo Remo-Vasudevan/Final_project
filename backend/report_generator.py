@@ -39,6 +39,11 @@ def _normalize_scalar(value: Any) -> str:
         if not cleaned or cleaned.lower() in {"not found", "none", "null", "n/a", "na"}:
             return NOT_DETECTED
         return cleaned
+    if isinstance(value, list):
+        if not value:
+            return NOT_DETECTED
+        joined = ", ".join(_normalize_scalar(item) for item in value if _normalize_scalar(item) != NOT_DETECTED)
+        return joined or NOT_DETECTED
     return NOT_DETECTED
 
 
@@ -56,6 +61,7 @@ def _normalize_extracted_data(extracted_data: dict[str, Any]) -> dict[str, str]:
         "company_name": "vendor_name",
         "supplier_name": "vendor_name",
         "seller_name": "vendor_name",
+        "customer_name": "bill_to",
         "invoice_no": "invoice_number",
         "invoice_id": "invoice_number",
         "date": "invoice_date",
@@ -142,7 +148,22 @@ def _build_tabular_lines(
     normalized_data: dict[str, str],
     table_region_lines: list[str],
     detected_block_lines: list[str],
+    line_items: list[dict[str, Any]],
 ) -> list[str]:
+    if line_items:
+        formatted_items = []
+        for index, item in enumerate(line_items, start=1):
+            formatted_items.append(
+                "Item {index} : {description} | Qty: {quantity} | Unit Price: {unit_price} | Amount: {amount}".format(
+                    index=index,
+                    description=_normalize_scalar(item.get("description")),
+                    quantity=_normalize_scalar(item.get("quantity")),
+                    unit_price=_normalize_scalar(item.get("unit_price")),
+                    amount=_normalize_scalar(item.get("amount")),
+                )
+            )
+        return formatted_items
+
     candidate_lines = [line.strip() for line in table_region_lines + detected_block_lines if line.strip()]
     filtered_lines = [line for line in candidate_lines if _looks_like_table_line(line)]
 
@@ -194,6 +215,7 @@ def _format_labeled_lines(items: list[tuple[str, str]]) -> list[str]:
 
 def generate_structured_report(layout_json_payload: dict[str, Any]) -> str:
     extracted_data = _normalize_extracted_data(layout_json_payload.get("extracted_data", {}))
+    line_items = layout_json_payload.get("extracted_data", {}).get("line_items", [])
     document_layout_analysis = layout_json_payload.get("document_layout_analysis", {})
     layout_regions = document_layout_analysis.get("layout_regions", [])
     detected_blocks = document_layout_analysis.get("detected_blocks", [])
@@ -212,7 +234,7 @@ def generate_structured_report(layout_json_payload: dict[str, Any]) -> str:
     body_items = _build_section_fields(extracted_data, body_lines, BODY_FIELD_LABELS)
     footer_items = _build_section_fields(extracted_data, footer_lines, FOOTER_FIELD_LABELS)
     position_items = _position_summary_lines(layout_regions, detected_blocks)
-    tabular_items = _build_tabular_lines(extracted_data, table_lines, [])
+    tabular_items = _build_tabular_lines(extracted_data, table_lines, [], line_items)
 
     report_lines = [
         "DOCUMENT ANALYSIS REPORT",

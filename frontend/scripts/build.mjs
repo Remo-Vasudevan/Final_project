@@ -17,5 +17,3 @@ await cp(staticSource, staticTarget, { recursive: true });
 
 const html = await readFile(indexPath, "utf8");
 await writeFile(distIndexPath, html, "utf8");
-
-console.log(`Frontend build completed: ${distRoot}`);

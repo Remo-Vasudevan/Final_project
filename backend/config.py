@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 
@@ -17,6 +18,17 @@ API_VERSION = "1.0.0"
 
 MODEL_NAME = "microsoft/layoutlmv3-base"
 OCR_LANGUAGES = ["en"]
+LAYOUTLM_ALLOW_DOWNLOAD = os.getenv("LAYOUTLM_ALLOW_DOWNLOAD", "").strip().lower() in {"1", "true", "yes", "on"}
+UPLOAD_FIELD_ALIASES = ("file", "document", "upload", "image")
+ALLOWED_IMAGE_CONTENT_TYPES = {
+    "image/bmp",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/tif",
+    "image/tiff",
+    "application/octet-stream",
+}
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 MAX_UPLOAD_SIZE_MB = 10
@@ -26,3 +38,22 @@ IMAGE_SIZE = (1000, 1000)
 LAYOUTLM_MAX_TOKENS = 512
 
 SUPPORTED_DOCUMENT_TYPES = ["invoice", "receipt", "document", "unknown"]
+
+
+def parse_cors_origins() -> list[str]:
+    raw_origins = os.getenv(
+        "BACKEND_CORS_ORIGINS",
+        ",".join(
+            [
+                "http://127.0.0.1:4173",
+                "http://localhost:4173",
+                "http://127.0.0.1:5173",
+                "http://localhost:5173",
+                "http://127.0.0.1:3000",
+                "http://localhost:3000",
+                "http://127.0.0.1:8001",
+                "http://localhost:8001",
+            ]
+        ),
+    )
+    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]

@@ -17,7 +17,7 @@ const readFlag = (flag, fallback) => {
 const rootDir = path.resolve(frontendRoot, readFlag("--root", "."));
 const port = Number(readFlag("--port", process.env.FRONTEND_PORT || 4173));
 const apiOrigin = process.env.API_ORIGIN || "http://127.0.0.1:8001";
-const proxyPrefixes = ["/upload", "/health", "/docs", "/openapi.json", "/outputs", "/uploads", "/favicon.ico"];
+const proxyPrefixes = ["/upload", "/health", "/docs", "/openapi.json", "/outputs", "/uploads", "/report", "/favicon.ico"];
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -107,7 +107,4 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Frontend server running at http://127.0.0.1:${port}`);
-  console.log(`Proxying API traffic to ${apiOrigin}`);
-});
+server.listen(port, "127.0.0.1");

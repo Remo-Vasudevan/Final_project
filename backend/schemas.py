@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -8,6 +8,10 @@ from pydantic import BaseModel, Field
 class APIStatusResponse(BaseModel):
     status: Literal["success", "error"]
     message: str
+
+
+class APIErrorResponse(APIStatusResponse):
+    error_code: str
 
 
 class HealthResponse(APIStatusResponse):
@@ -84,6 +88,8 @@ class PublicUploadResponse(APIStatusResponse):
     huggingface_summary: str
     document_understanding_summary: str
     json_output: ModuleJsonOutput
+    extracted_data: dict[str, Any] | None = None
+    ocr_text_preview: str | None = None
     json_output_file: str | None = None
     json_output_url: str | None = None
     excel_file: str | None = None
@@ -105,6 +111,12 @@ class PublicUploadResponse(APIStatusResponse):
                 "layoutlmv3_summary": "LayoutLMv3 analyzed OCR-extracted text together with bounding box positions for layout-aware document understanding.",
                 "huggingface_summary": "The model was accessed through Hugging Face and executed successfully.",
                 "document_understanding_summary": "The module used spatial text positions and layout-aware contextual structure to support invoice understanding.",
+                "extracted_data": {
+                    "invoice_number": "INV-2026-001",
+                    "invoice_date": "12/03/2026",
+                    "vendor_name": "Acme Trading Company"
+                },
+                "ocr_text_preview": "INVOICE\nAcme Trading Company\nInvoice No INV-2026-001",
                 "json_output": {
                     "module": "LayoutLMv3 + Hugging Face",
                     "document_type": "invoice",

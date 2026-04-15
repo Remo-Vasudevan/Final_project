@@ -19,6 +19,40 @@ const resultFields = {
 };
 
 const DEFAULT_REPORT_PREVIEW = "Report preview will appear here after processing.";
+const LOCAL_BACKEND_ORIGIN = "http://127.0.0.1:8001";
+
+function isLocalHost(hostname) {
+  return hostname === "127.0.0.1" || hostname === "localhost";
+}
+
+function resolveApiBaseUrl() {
+  const configuredOrigin = window.SMART_INVOICE_API_ORIGIN || document.body.dataset.apiOrigin;
+  if (configuredOrigin) {
+    return configuredOrigin.replace(/\/$/, "");
+  }
+
+  const { protocol, hostname, port, origin } = window.location;
+  if (protocol.startsWith("http") && isLocalHost(hostname) && port && port !== "8001") {
+    return LOCAL_BACKEND_ORIGIN;
+  }
+
+  return origin.replace(/\/$/, "");
+}
+
+function buildApiUrl(path) {
+  return `${resolveApiBaseUrl()}${path}`;
+}
+
+async function parseResponsePayload(response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  return text ? { detail: text } : {};
+}
 
 function setStatus(message, isError = false) {
   statusBox.textContent = message;
@@ -48,6 +82,15 @@ function resetResultView() {
   resultFields.reportPreview.textContent = DEFAULT_REPORT_PREVIEW;
 }
 
+function syncApiLinks() {
+  const docsLink = document.querySelector('a[href="/docs"]');
+  if (docsLink) {
+    docsLink.href = buildApiUrl("/docs");
+  }
+}
+
+syncApiLinks();
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -66,12 +109,12 @@ form.addEventListener("submit", async (event) => {
   resetResultView();
 
   try {
-    const response = await fetch("/upload", {
+    const response = await fetch(buildApiUrl("/upload"), {
       method: "POST",
       body: payload,
     });
 
-    const data = await response.json();
+    const data = await parseResponsePayload(response);
 
     if (!response.ok) {
       throw new Error(data.detail || data.message || "Upload failed.");
@@ -93,7 +136,11 @@ form.addEventListener("submit", async (event) => {
     setStatus("Document processed successfully.");
     resultSection.classList.remove("hidden");
   } catch (error) {
-    setStatus(error.message || "Something went wrong while processing the upload.", true);
+    const isNetworkError = error instanceof TypeError;
+    const errorMessage = isNetworkError
+      ? `Could not reach the backend at ${resolveApiBaseUrl()}. Start the API server and try again.`
+      : error.message || "Something went wrong while processing the upload.";
+    setStatus(errorMessage, true);
   } finally {
     submitButton.disabled = false;
   }
